@@ -54,7 +54,10 @@ RUN fault --version && yosys -V && iverilog -V | head -1 && \
     { [ ! -x /opt/quaigh/bin/quaigh ] || quaigh --version; }
 COPY . .
 
-RUN useradd --create-home --uid 1000 dft && mkdir -p /data && chown -R dft /data
+# UID 1000, igual ao da API: os dois escrevem no mesmo volume /data.
+# A ubuntu:24.04 já traz o usuário "ubuntu" com esse UID, então ele sai antes.
+RUN (userdel --remove ubuntu 2>/dev/null || true) && \
+    useradd --create-home --uid 1000 dft && mkdir -p /data && chown -R dft /data
 USER dft
 
 # -c 1: um job por container. Para medir throughput, escale containers:

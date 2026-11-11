@@ -238,3 +238,15 @@ def test_status_no_github_e_webhook(settings, monkeypatch, fake_flow):
     assert all(p["context"] == "dft-as-code/coverage" for _, p in gh)
     hooks = [p for u, p in calls if u.startswith("https://hooks.example")]
     assert len(hooks) == 1 and "reprovado" in hooks[0]["text"]
+
+
+def test_fila_fora_do_ar_marca_job_como_erro(monkeypatch):
+    def boom(*a, **k):
+        raise ModuleNotFoundError("No module named 'packaging'")
+
+    monkeypatch.setattr(tasks.run_job, "delay", boom)
+    c = Client()
+    r = submit(c)
+    assert r.status_code == 202
+    j = c.get(f"/api/v1/jobs/{r.json()['id']}").json()
+    assert j["status"] == "error" and "fila indisponível" in j["error"]

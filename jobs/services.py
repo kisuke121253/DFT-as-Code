@@ -64,7 +64,18 @@ def enqueue(job: Job) -> None:
     from .tasks import run_job
 
     def _send():
-        res = run_job.delay(str(job.id))
+        try:
+            res = run_job.delay(str(job.id))
+        except Exception as e:  # noqa: BLE001 — fila fora do ar: o job não pode ficar preso em "queued"
+            import logging
+
+            from django.utils import timezone
+
+            logging.getLogger(__name__).exception("falha ao enfileirar o job %s", job.id)
+            Job.objects.filter(pk=job.pk, status=Job.Status.QUEUED).update(
+                status=Job.Status.ERROR, finished_at=timezone.now(),
+                error=f"fila indisponível, job não enfileirado: {type(e).__name__}: {e}")
+            return
         Job.objects.filter(pk=job.pk).update(celery_task_id=res.id or "")
 
     transaction.on_commit(_send)

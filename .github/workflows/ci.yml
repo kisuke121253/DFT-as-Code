@@ -15,6 +15,17 @@ jobs:
       - name: Ferramentas EDA
         run: sudo apt-get update && sudo apt-get install -y yosys iverilog
 
+      - name: Cache do Quaigh
+        id: quaigh-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/quaigh
+          key: quaigh-0.0.6-${{ runner.os }}
+
+      - name: Quaigh (ATPG determinístico)
+        if: steps.quaigh-cache.outputs.cache-hit != 'true'
+        run: cargo install quaigh --version 0.0.6 --locked
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"     # fault-dft 0.9.4 não funciona no 3.14

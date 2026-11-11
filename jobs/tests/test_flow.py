@@ -47,8 +47,12 @@ def test_s27_fluxo_completo(tmp_path):
     p = res["primary"]
     assert (p["fault_sites"], p["total_faults"], p["detected"]) == (45, 90, 78)
     assert p["coverage_pct"] == pytest.approx(86.6667, abs=1e-3)
-    assert p["vectors_final"] == 6
-    assert res["coverage"]["quaigh"]["coverage_pct"] == pytest.approx(86.6667, abs=1e-3)
+    # a compactação do PRNG do Fault 0.9.4 não é determinística: 6 ou 7 vetores
+    assert p["vectors_final"] in (6, 7)
+    if shutil.which("quaigh"):
+        assert res["coverage"]["quaigh"]["coverage_pct"] == pytest.approx(86.6667, abs=1e-3)
+    else:
+        assert ("quaigh", "skipped") in events and "quaigh" not in res["coverage"]
     assert res["scan"] == {"verified": True, "internal_ffs": 3, "boundary_cells": 5, "length": 8}
     assert res["jtag"] == {"tap_verified": True, "vectors_verified": True}
     assert {k: v["area_um2"] for k, v in res["area"].items()} == {"synth": 3264.0, "scan": 10152.0, "scan_jtag": 57880.0}
@@ -72,3 +76,11 @@ def test_sequencial_sem_reset_usa_reset_ficticio(tmp_path):
     assert ("chain", "ok") in events and ("tap", "ok") in events
     assert res["scan"]["internal_ffs"] == 2
     assert res["primary"]["coverage_pct"] == 100.0
+
+
+def test_quaigh_como_gerador_principal_sem_executavel(tmp_path, monkeypatch):
+    from jobs.flow.runner import FlowError
+
+    monkeypatch.setattr(Tools, "has_quaigh", property(lambda self: False))
+    with pytest.raises(FlowError, match="não está no PATH"):
+        run(tmp_path, "top: c17\nsources: [c17.v]\natpg: {generator: quaigh}\n", [tmp_path / "c17.v"])

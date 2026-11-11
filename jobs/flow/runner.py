@@ -44,7 +44,12 @@ class Tools:
     fault: str = "fault"
     nl2bench: str = "nl2bench"
     yosys: str = "yosys"
+    quaigh: str = "quaigh"
     fault_threads: int = 1
+
+    @property
+    def has_quaigh(self) -> bool:
+        return shutil.which(self.quaigh) is not None
 
 
 @dataclass
@@ -337,6 +342,13 @@ class FlowRunner:
         c = self.config
         use_prng = c.atpg.generator == "prng" or c.atpg.compare_with_quaigh
         use_quaigh = c.atpg.generator == "quaigh" or c.atpg.compare_with_quaigh
+        no_quaigh = "Quaigh não usado"
+        if use_quaigh and not self.tools.has_quaigh:
+            if c.atpg.generator == "quaigh":
+                raise FlowError("atpg.generator: quaigh, mas o executável 'quaigh' não está no PATH "
+                                "(instale com: cargo install quaigh --version 0.0.6)", "quaigh")
+            # só comparação: pula em vez de derrubar o job
+            use_quaigh, no_quaigh = False, "quaigh não instalado no worker (comparação pulada)"
         no_scan = "scan desativado" if not c.scan.enabled else ""
         if c.is_combinational:
             no_scan = "circuito combinacional"
@@ -345,8 +357,8 @@ class FlowRunner:
             StepPlan("synth", self.step_synth),
             StepPlan("cut", self.step_cut),
             StepPlan("atpg", self.step_atpg, use_prng, "gerador PRNG não usado"),
-            StepPlan("nl2bench", self.step_nl2bench, use_quaigh, "Quaigh não usado"),
-            StepPlan("quaigh", self.step_quaigh, use_quaigh, "Quaigh não usado"),
+            StepPlan("nl2bench", self.step_nl2bench, use_quaigh, no_quaigh),
+            StepPlan("quaigh", self.step_quaigh, use_quaigh, no_quaigh),
             StepPlan("chain", self.step_chain, not no_scan, no_scan),
             StepPlan("asm", self.step_asm, not no_jtag and c.jtag.apply_vectors,
                      no_jtag or "vetores pela JTAG desativados"),
