@@ -1,0 +1,28 @@
+# CI do próprio back-end: testes de unidade, API e integração com as ferramentas reais.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04          # Yosys 0.33 e Icarus 12, como na etapa 1
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Ferramentas EDA
+        run: sudo apt-get update && sudo apt-get install -y yosys iverilog
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"     # fault-dft 0.9.4 não funciona no 3.14
+
+      - name: Dependências
+        run: pip install -r requirements-dev.txt fault-dft==0.9.4 ./cli
+
+      - name: Testes
+        env:
+          FAULT_THREADS: "1"
+        run: python -m pytest -v

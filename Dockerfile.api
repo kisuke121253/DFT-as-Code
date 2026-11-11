@@ -1,0 +1,19 @@
+# API REST do DFT as Code (não precisa das ferramentas EDA).
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DFT_DATA_DIR=/data \
+    DFT_TECH_DIR=/app/tech
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+RUN DJANGO_SECRET_KEY=build python manage.py collectstatic --noinput -v0 \
+    && useradd --create-home --uid 1000 dft && mkdir -p /data && chown -R dft /data
+USER dft
+
+EXPOSE 8000
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn dft_backend.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --timeout 120 --access-logfile -"]

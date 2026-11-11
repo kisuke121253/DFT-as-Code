@@ -1,0 +1,10 @@
+# Mantém LF na cópia de trabalho, inclusive no Windows: o projeto roda em
+# Linux/WSL/Docker, e o Fault/Yosys leem a biblioteca e as fixtures como estão.
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+*.gds2 binary
+*.png  binary
+*.pdf  binary

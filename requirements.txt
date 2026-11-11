@@ -1,0 +1,9 @@
+Django>=5.2,<6
+django-ninja>=1.8,<2
+celery>=5.4,<6
+redis>=5.0
+psycopg2-binary>=2.9
+pydantic>=2.7,<3
+PyYAML>=6.0
+gunicorn>=23.0
+whitenoise>=6.7

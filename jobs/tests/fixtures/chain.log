@@ -1,0 +1,20 @@
+$ fault chain -l /home/claude/backend/tech/osu035/osu035_stdcells.lib -c /home/claude/backend/tech/osu035/osu035_stdcells.v -s /home/claude/backend/tech/osu035/config.yml --clock CK --reset reset --bypassing VDD --bypassing GND --sin sin --sout sout --shift shift --test test -o s27.chained.v s27.nl.v
+Generating LALR tables
+WARNING: 183 shift/reduce conflicts
+Generating LALR tables
+WARNING: 183 shift/reduce conflicts
+Generating LALR tables
+WARNING: 183 shift/reduce conflicts
+Processing file s27.nl.v…
+Processing module s27…
+Chaining internal flip-flops…
+Internal scan chain successfully constructed. Length: 3
+Boundary scan cells successfully chained. Length:  5
+Total scan-chain length:  8
+Resynthesizing with yosys…
+Verifying scan chain integrity…
+Starting simulation steps (log: s27.chained.v.tb.sv.log)…
+Scan chain verified successfully.
+Done.
+
+[exit 0]

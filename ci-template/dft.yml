@@ -1,0 +1,63 @@
+# Workflow para o repositório do RTL (ex.: o repositório do TCC com rtl/mac8.v).
+# Copie para .github/workflows/dft.yml e configure em Settings → Secrets and variables → Actions:
+#
+#   secrets.DFT_API_URL     URL da API, ex.: https://dft.seudominio.dev
+#   secrets.DFT_API_TOKEN   um dos tokens de DFT_API_TOKENS
+#   vars.DFT_BACKEND_REPO   dono/repo do back-end (de onde instalar o dftctl), ex.: joaopedro/dft-backend
+#
+# A cada push ou PR que mexe no RTL, o fluxo DFT roda no servidor; o job falha
+# (check vermelho) se a cobertura cair além do limite do dft.yaml ou ficar
+# abaixo do alvo. O resumo com cobertura, vetores, scan e área aparece na aba
+# "Summary" da execução.
+#
+# A API precisa ser acessível pelo runner. Se ela só roda na sua máquina,
+# use um runner self-hosted (runs-on: self-hosted) ou exponha a API com um
+# túnel (cloudflared, ngrok, tailscale funnel).
+
+name: DFT
+
+on:
+  push:
+    branches: [main]
+    paths: ["rtl/**", "**/*.v", "**/*.sv", "dft.yaml", ".github/workflows/dft.yml"]
+  pull_request:
+    paths: ["rtl/**", "**/*.v", "**/*.sv", "dft.yaml", ".github/workflows/dft.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: dft-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dft:
+    name: cobertura de falhas
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Instalar dftctl
+        run: pip install "dftctl @ git+https://github.com/${{ vars.DFT_BACKEND_REPO }}#subdirectory=cli"
+
+      - name: Rodar fluxo DFT (síntese → scan → JTAG → ATPG → cobertura)
+        id: dft
+        env:
+          DFT_API_URL: ${{ secrets.DFT_API_URL }}
+          DFT_API_TOKEN: ${{ secrets.DFT_API_TOKEN }}
+        run: |
+          dftctl run -c dft.yaml \
+            --timeout 6600 \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --report-out dft-report.json
+
+      - name: Guardar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dft-report
+          path: dft-report.json
+          if-no-files-found: ignore

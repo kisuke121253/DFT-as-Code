@@ -1,0 +1,30 @@
+# dft.yaml do MAC de 8 bits. Coloque na raiz do repositório do RTL
+# (ex.: tcc/etapa1/), ao lado da pasta rtl/.
+version: 1
+project: mac8
+top: mac8
+sources: [rtl/mac8.v]
+clock: clk
+reset: rst_n
+reset_active_low: true
+
+scan:
+  enabled: true
+jtag:
+  enabled: true
+  apply_vectors: true      # aplica os vetores ATPG pela TAP em simulação
+
+atpg:
+  generator: prng
+  compare_with_quaigh: false   # true para a tabela PRNG × Quaigh (≈ +1 min)
+  min_coverage: 100
+  ceiling: 2000
+
+coverage:
+  target: 99.0             # Yosys 0.52 (Ubuntu 26.04) dá 99,9%; Yosys 0.33 dá 100%
+
+regression:
+  max_drop_pp: 0.5         # reprova se cair mais de 0,5 ponto percentual
+  baseline: last_passed
+
+timeout_minutes: 60        # o ATPG do MAC leva de 5 a 11 min com FAULT_THREADS=1

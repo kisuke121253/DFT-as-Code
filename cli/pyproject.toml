@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dftctl"
+version = "1.0.0"
+description = "Cliente de linha de comando do pipeline DFT as Code"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+dftctl = "dftctl.__main__:main"
+
+[tool.setuptools]
+packages = ["dftctl"]

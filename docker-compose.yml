@@ -1,0 +1,91 @@
+# DFT as Code — pilha completa
+#
+#   cp .env.example .env        # ajuste senhas e tokens
+#   docker compose up -d --build
+#   docker compose exec api python manage.py createsuperuser   # acesso ao /admin
+#
+# Throughput com workers em paralelo:
+#   docker compose up -d --scale worker=4
+#
+# API em http://localhost:8000/api/v1/docs  ·  admin em http://localhost:8000/admin
+
+x-app-env: &app-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-dft}:${POSTGRES_PASSWORD:-dft}@db:5432/${POSTGRES_DB:-dft}
+  REDIS_URL: redis://redis:6379/0
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-troque-em-producao}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
+  DFT_DATA_DIR: /data
+  DFT_API_TOKENS: ${DFT_API_TOKENS:-}
+  DFT_PUBLIC_URL: ${DFT_PUBLIC_URL:-http://localhost:8000}
+  DFT_DEFAULT_MAX_DROP_PP: ${DFT_DEFAULT_MAX_DROP_PP:-0.5}
+  DFT_JOB_TIMEOUT_MIN: ${DFT_JOB_TIMEOUT_MIN:-120}
+  DFT_WEBHOOK_URL: ${DFT_WEBHOOK_URL:-}
+  DFT_GITHUB_TOKEN: ${DFT_GITHUB_TOKEN:-}
+  DFT_GIT_TOKEN: ${DFT_GIT_TOKEN:-}
+  FAULT_THREADS: ${FAULT_THREADS:-1}   # contorno do "Illegal instruction" do fault atpg 0.9.4
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dft}
+      POSTGRES_USER: ${POSTGRES_USER:-dft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dft}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]   # a fila sobrevive a reinícios
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment: *app-env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - dft_data:/data
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        WITH_QUAIGH: ${WITH_QUAIGH:-1}
+    environment: *app-env
+    volumes:
+      - dft_data:/data
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      api: {condition: service_healthy}   # garante que as migrações já rodaram
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  dft_data:

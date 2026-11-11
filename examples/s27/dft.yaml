@@ -1,0 +1,15 @@
+# ISCAS'89 s27 — benchmark de referência da etapa 1
+version: 1
+project: iscas89-s27
+top: s27
+sources: [s27.v]
+clock: CK
+reset: reset            # ativo alto no s27
+bypass: [VDD, GND]      # alimentação não entra como fault site
+atpg:
+  generator: prng
+  compare_with_quaigh: true
+coverage:
+  target: 85
+regression:
+  max_drop_pp: 0.5
