@@ -13,8 +13,13 @@ ARG WITH_QUAIGH=1
 # ---------- Quaigh (ATPG determinístico, compilado do crates.io)
 FROM rust:1-slim-bookworm AS quaigh
 ARG WITH_QUAIGH
+# dependências de build do Quaigh (openssl-sys, libgit2-sys, kissat em C).
+# O binário final só depende da libc.
 RUN mkdir -p /opt/quaigh/bin && \
     if [ "$WITH_QUAIGH" = "1" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev zlib1g-dev git ca-certificates && \
+        rm -rf /var/lib/apt/lists/* && \
         cargo install quaigh --version 0.0.6 --locked --root /opt/quaigh; \
     fi
 
@@ -44,6 +49,9 @@ COPY requirements.txt .
 RUN uv pip install --no-cache -r requirements.txt fault-dft==0.9.4
 
 COPY --from=quaigh /opt/quaigh /opt/quaigh
+# confere que as ferramentas rodam na imagem final (falha o build cedo, se não)
+RUN fault --version && yosys -V && iverilog -V | head -1 && \
+    { [ ! -x /opt/quaigh/bin/quaigh ] || quaigh --version; }
 COPY . .
 
 RUN useradd --create-home --uid 1000 dft && mkdir -p /data && chown -R dft /data
